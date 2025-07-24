@@ -1,0 +1,22 @@
+type: http-crawler  # This MUST match the 'Type' constant in http-crawler.ts
+
+# --- Required Configuration ---
+startUrl: "https://www.godspeed.systems/" # The initial URL to start crawling from.
+
+# --- Optional Configurations ---
+method: GET                    # HTTP method for requests (GET or POST). Default: GET
+# headers:                     # Custom HTTP headers to send with requests.
+#   User-Agent: "MyCustomCrawler/1.0"
+#   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+# params:                      # Query parameters for GET requests.
+#   key: "value"
+# data:                        # Request body for POST requests.
+#   param1: "value1"
+
+userAgent: "Godspeed-HttpCrawler-Instance" # Custom User-Agent string for all requests. Default: Godspeed-HttpCrawler or Godspeed-HttpCrawler-Sitemap/Init
+maxDepth: 1                    # Maximum depth for recursive crawling. 0 means only the startUrl. Default: 0
+sitemapDiscovery: false        # Whether to attempt to discover and parse sitemap.xml. Default: false
+recursiveCrawling: false       # Whether to follow links recursively. Default: false
+followExternalLinks: false     # Whether to follow links to different domains during recursive crawling. Default: false
+# urlFilterRegex: "https://example\\.com/blog/.*" # Optional: A regex string to filter URLs during crawling and sitemap parsing.
+                                                 # Only URLs matching this regex will be processed. Remember to escape backslashes.

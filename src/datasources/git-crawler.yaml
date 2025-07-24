@@ -1,0 +1,24 @@
+# This 'type' must match the 'Type' constant exported from your git-crawler.ts
+# and will be used by Godspeed to identify which DataSource class to load.
+type: git-crawler
+
+# The URL of the Git repository you want to clone.
+# This is a required field as per your GitCrawlerConfig.
+# Example: A public GitHub repository
+repoUrl: https://github.com/soham1334/Txt-to-Speech
+
+# The local path where the repository will be cloned.
+# This is relative to your project root (where you run 'gs start' or your script).
+# Ensure this directory either doesn't exist or is empty, as 'simple-git' clone
+# typically expects an empty or non-existent target directory.
+# This is a required field as per your GitCrawlerConfig.
+localPath: ./tmp/test2
+
+# Optional: The branch to clone. If not specified, 'main' (or 'master') will be used
+# as per the DEFAULT_CONFIG in your git-crawler.ts.
+branch: main
+
+# Optional: The depth of the clone. If not specified, 1 will be used
+# for a shallow clone as per the DEFAULT_CONFIG.
+# Set to 0 or omit for a full clone (not recommended for large repos without a good reason).
+depth: 1

@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true 
+    },
+    "exclude": [
+        "./node_modules"
+    ],
+    "name": "test-project"
+}
