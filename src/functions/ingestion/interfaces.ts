@@ -1,4 +1,4 @@
-// C:\Users\SOHAM\Desktop\test godspeed\test-project\src\functions\ingestion\interfaces.ts
+// C:\Users\SOHAM\Desktop\crawler\test-crawler\src\functions\ingestion\interfaces.ts
 
 import { GSStatus, GSContext } from '@godspeedsystems/core'; // Added GSContext import
 import { EventEmitter } from 'events';
@@ -15,6 +15,7 @@ export interface IngestionData {
         filename?: string; // e.g., original filename
         relativePath?: string; // e.g., path within a source system
     };
+    fetchedAt?: Date; 
     // Add any other properties your ingestion data might have
     [key: string]: any; // Allows for additional arbitrary properties
 }
@@ -114,16 +115,16 @@ export interface IGlobalIngestionLifecycleManager {
     deleteTask(taskId: string): Promise<GSStatus>;
     getTask(taskId: string): IngestionTaskDefinition | undefined;
     listTasks(): IngestionTaskDefinition[];
-    triggerManualTask(taskId: string, initialPayload?: any): Promise<GSStatus>;
-    triggerWebhookTask(endpointId: string, payload: any): Promise<GSStatus>;
-    triggerAllEnabledCronTasks(): Promise<GSStatus>;
+    triggerManualTask(ctx: GSContext,taskId: string, initialPayload?: any): Promise<GSStatus>;
+    triggerWebhookTask(ctx: GSContext,endpointId: string, payload: any): Promise<GSStatus>;
+    triggerAllEnabledCronTasks(ctx: GSContext): Promise<GSStatus>;
     getEventBus(): EventEmitter;
 }
 
 
 // --- Orchestrator Interface (Optional, but good for explicit typing if used elsewhere) ---
 export interface IIngestionOrchestrator {
-    executeTask(initialPayload?: any): Promise<GSStatus>;
+    executeTask(ctx: GSContext,initialPayload?: any): Promise<GSStatus>;
     getEventBus(): EventEmitter;
 }
 
@@ -135,6 +136,7 @@ export const IngestionEvents = {
     TASK_ENABLED: 'task_enabled',
     TASK_DISABLED: 'task_disabled',
     TASK_DELETED: 'task_deleted',
+    TASK_STARTED: 'task_started', 
     TASK_TRIGGERED: 'task_triggered', // Task execution started
     TASK_COMPLETED: 'task_completed', // Task execution finished successfully
     TASK_FAILED: 'task_failed',     // Task execution failed

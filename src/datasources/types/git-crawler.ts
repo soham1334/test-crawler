@@ -1,29 +1,45 @@
+
+// C:\Users\SOHAM\Desktop\crawler\test-crawler\src\datasources\types\git-crawler.ts
+
 import { GSContext, GSDataSource, GSStatus, logger } from "@godspeedsystems/core";
 import simpleGit, { SimpleGit, CloneOptions } from "simple-git";
 
-// Make sure GitCrawlerConfig is EXPORTED so it can be imported elsewhere
-export interface GitCrawlerConfig { // <--- Added 'export' here
+export interface GitCrawlerConfig {
   repoUrl: string;
   localPath: string;
   branch?: string;
   depth?: number;
 }
 
-// DataSource is already exported as a default export
 export default class DataSource extends GSDataSource {
   private git: SimpleGit = simpleGit();
 
   public config: GitCrawlerConfig;
 
+  // IMPORTANT: The 'configWrapper' parameter's type annotation might be misleading
+  // about the exact structure Godspeed passes at runtime (it seems to pass flat config).
+  // To adhere to "don't change its structure or logic" for this constructor,
+  // we assume the 'super' call correctly populates 'this.config' in the parent class.
   constructor(configWrapper: { config: GitCrawlerConfig }) {
-    super(configWrapper);
+    // Call the parent GSDataSource constructor.
+    // We are passing the configWrapper as received, assuming the superclass
+    // knows how to handle it (either it expects a wrapped config, or it's flexible).
+    super(configWrapper); 
 
-    const initialConfig = configWrapper.config;
+    // FIX: The runtime log shows Godspeed passes the flat config object directly as 'configWrapper'.
+    // Therefore, 'configWrapper.config' is undefined.
+    // We must use 'configWrapper' itself as the source of the initial configuration.
+    // This is the most minimal change to make 'repoUrl' available at runtime.
+    // We use 'as unknown as GitCrawlerConfig' to tell TypeScript to treat 'configWrapper'
+    // as the GitCrawlerConfig type for this assignment, overriding the declared type.
+    const initialConfig = configWrapper as unknown as GitCrawlerConfig; 
 
+    // Now, assign 'this.config' by applying defaults to the 'initialConfig'
+    // which now correctly holds the actual configuration from Godspeed.
     this.config = {
       branch: "main",
       depth: 1,
-      ...initialConfig,
+      ...initialConfig, // This will now correctly spread the properties from the object Godspeed provides
     } as GitCrawlerConfig;
 
     if (!this.config.repoUrl) {
@@ -36,7 +52,7 @@ export default class DataSource extends GSDataSource {
     logger.info(`GitCrawler initialized for repo: ${this.config.repoUrl} at ${this.config.localPath}`);
   }
 
-  public async initClient(): Promise<object> { // Corrected to public in previous step
+  public async initClient(): Promise<object> {
     logger.info("GitCrawler client initialized (basic check).");
     return { status: "connected" };
   }

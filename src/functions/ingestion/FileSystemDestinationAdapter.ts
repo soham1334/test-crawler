@@ -1,35 +1,29 @@
-// C:\Users\SOHAM\Desktop\test godspeed\test-project\src\functions\ingestion\FileSystemDestinationAdapter.ts
-// Assuming this file is now in src/functions/ingestion/ and not src/test/
+// C:\Users\SOHAM\Desktop\crawler\test-crawler\src\functions\ingestion\FileSystemDestinationAdapter.ts
 
-import { IDestinationPlugin, IngestionData } from './interfaces'; // Corrected path to interfaces
+import { IDestinationPlugin, IngestionData } from './interfaces';
 import { GSStatus, logger } from '@godspeedsystems/core';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
 export interface FileSystemDestinationConfig {
-    outputPath?: string; // Made optional in interfaces.ts
+    outputPath?: string;
 }
 
 export class FileSystemDestinationAdapter implements IDestinationPlugin {
     private config: FileSystemDestinationConfig | undefined;
-    private isInitializedForSaving: boolean = false; // Flag to track if saving is possible
+    private isInitializedForSaving: boolean = false;
 
     constructor() {
         logger.info("FileSystemDestinationAdapter instance created.");
     }
 
-    /**
-     * Initializes the FileSystemDestinationAdapter.
-     * @param config The configuration, including the base outputPath.
-     * @returns A Promise<void> as per IDestinationPlugin.
-     */
-    async init(config: FileSystemDestinationConfig): Promise<void> { // Return type changed to void as per IDestinationPlugin
+    async init(config: FileSystemDestinationConfig): Promise<void> {
         this.config = config;
 
         if (!this.config?.outputPath) {
             logger.warn("FileSystemDestinationAdapter: 'outputPath' is not provided in configuration. Files will NOT be saved to disk.");
             this.isInitializedForSaving = false;
-            return; // Exit init gracefully
+            return;
         }
 
         try {
@@ -42,12 +36,6 @@ export class FileSystemDestinationAdapter implements IDestinationPlugin {
         }
     }
 
-    /**
-     * Processes (writes) a batch of IngestionData items to the file system.
-     * This method implements the 'processData' from IDestinationPlugin.
-     * @param data The array of IngestionData items to save.
-     * @returns A GSStatus indicating overall success or failure for the batch.
-     */
     async processData(data: IngestionData[]): Promise<GSStatus> {
         if (!this.isInitializedForSaving || !this.config?.outputPath) {
             return new GSStatus(false, 400, `FileSystemDestinationAdapter: Skipping save of ${data.length} files because outputPath was not provided or directory could not be created.`);
@@ -58,20 +46,39 @@ export class FileSystemDestinationAdapter implements IDestinationPlugin {
         let errorCount = 0;
         const errors: string[] = [];
 
-        // Use Promise.allSettled to process all items and collect results
         const results = await Promise.allSettled(data.map(async (item) => {
-            // Internal helper to save a single item
             const saveSingleItem = async (singleItem: IngestionData): Promise<GSStatus> => {
                 const filename = singleItem.metadata?.filename || path.basename(singleItem.id) || `data-${Date.now()}`;
                 const relativePath = singleItem.metadata?.relativePath || '';
                 
-                const targetDir = path.join(this.config!.outputPath!, relativePath ? path.dirname(relativePath) : ''); // Use ! as we checked isInitializedForSaving
+                // Extract fetchedAt, URL, and StatusCode from the IngestionData item
+                // FIX: Add debug log for singleItem.fetchedAt
+                logger.debug(`[FileSystemDestinationAdapter DEBUG] singleItem.fetchedAt:`, singleItem.fetchedAt);
+                const fetchedAt = singleItem.fetchedAt ? singleItem.fetchedAt.toISOString() : 'N/A';
+                const url = singleItem.url || singleItem.metadata?.url || 'N/A';
+                const statusCode = singleItem.statusCode || singleItem.metadata?.statusCode || 'N/A';
+
+                const targetDir = path.join(this.config!.outputPath!, relativePath ? path.dirname(relativePath) : '');
                 const targetFilePath = path.join(targetDir, filename);
 
                 try {
                     if (singleItem.content instanceof Buffer || typeof singleItem.content === 'string') {
                         await fs.mkdir(targetDir, { recursive: true });
-                        await fs.writeFile(targetFilePath, singleItem.content);
+                        
+                        const metadataHeader = `
+--- Metadata ---
+ID: ${singleItem.id}
+URL: ${url}
+Status Code: ${statusCode}
+Fetched At: ${new Date()}
+----------------
+\n`;
+
+                        const contentToWrite = typeof singleItem.content === 'string'
+                            ? metadataHeader + singleItem.content
+                            : Buffer.concat([Buffer.from(metadataHeader), singleItem.content]);
+
+                        await fs.writeFile(targetFilePath, contentToWrite);
                         logger.debug(`FileSystemDestinationAdapter: Saved single item: ${targetFilePath}`);
                         return new GSStatus(true, 200, `Successfully saved item ${singleItem.id} to ${targetFilePath}`);
                     } else {
@@ -102,12 +109,9 @@ export class FileSystemDestinationAdapter implements IDestinationPlugin {
 
         if (errorCount > 0) {
             logger.error(`FileSystemDestinationAdapter: Batch save completed with ${errorCount} errors.`, { errors });
-            return new GSStatus(false, 500, `Batch save failed for ${errorCount} items.`, { data: { errors } }); // Use 'data' for errors
+            return new GSStatus(false, 500, `Batch save failed for ${errorCount} items.`, { data: { errors } });
         }
         logger.info(`FileSystemDestinationAdapter: Successfully saved ${successCount} items in batch.`);
         return new GSStatus(true, 200, `Successfully saved ${successCount} items in batch.`);
     }
-
-    // Removed the individual 'send' and 'sendBatch' methods as 'processData' now handles the batch.
-    // The internal 'saveSingleItem' function within processData replaces the old 'send' logic.
 }

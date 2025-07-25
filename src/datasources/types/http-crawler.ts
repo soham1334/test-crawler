@@ -1,6 +1,11 @@
+//C:\Users\SOHAM\Desktop\crawler\test-crawler\src\datasources\types\http-crawler.ts
+
 import { GSDataSource, GSContext, GSStatus, logger } from "@godspeedsystems/core";
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { Element } from 'domhandler';
+
+
 import { parseStringPromise } from "xml2js";
 import { URL } from "url"; // Import URL for robust URL handling
 
@@ -22,18 +27,17 @@ export interface HttpCrawlerConfig {
 
 export class DataSource extends GSDataSource {
   private visited: Set<string>;
-  // The 'config' property is already part of GSDataSource, no need to redeclare
-  // public config: HttpCrawlerConfig; // Removed, as GSDataSource provides this
+  public config: HttpCrawlerConfig; // Explicitly declare 'config' here
 
-  constructor(configWrapper: { config: HttpCrawlerConfig }) {
+  constructor(configWrapper: { config: HttpCrawlerConfig } | HttpCrawlerConfig) { // Allow both wrapped and flat config
     // Call super with the configWrapper. GSDataSource will process it.
     super(configWrapper); 
 
-    // IMPORTANT CHANGE HERE:
-    // Directly access the config from the configWrapper first,
-    // before relying on 'this.config' which might not be fully initialized
-    // by the super constructor in all execution contexts immediately.
-    const initialConfig = configWrapper.config;
+    // FIX: The runtime log shows Godspeed passes the flat config object directly as 'configWrapper'.
+    // Therefore, 'configWrapper.config' is undefined if it's flat.
+    // We need to correctly extract the initial config.
+    // If configWrapper has a 'config' property, use it; otherwise, assume configWrapper itself is the config.
+    const initialConfig = (configWrapper as { config: HttpCrawlerConfig }).config || (configWrapper as HttpCrawlerConfig);
 
     // Apply defaults and merge, and then ensure 'this.config' holds the final merged config.
     this.config = {
@@ -132,9 +136,11 @@ export class DataSource extends GSDataSource {
       }
 
       // Ensure recursive crawling only happens if explicitly enabled or sitemapDiscovery is off
-      if (!sitemapDiscovery || (sitemapDiscovery && recursiveCrawling)) {
+      // FIX: Use nullish coalescing to ensure recursiveCrawling is a boolean for the condition
+      if (!sitemapDiscovery || (sitemapDiscovery && (recursiveCrawling ?? false))) {
         logger.info(`Starting recursive crawl from ${startUrl} with maxDepth ${maxDepth}`);
-        await this._crawl(startUrl, maxDepth ?? 0, results, followExternalLinks, regexFilter);
+        await this._crawl(startUrl, maxDepth ?? 0, results, followExternalLinks ?? false, regexFilter);
+
       }
 
       logger.info(`Crawl completed. Total crawled pages: ${results.length}`);
@@ -202,7 +208,8 @@ export class DataSource extends GSDataSource {
       logger.warn(`Failed to fetch ${url}. Status Code: ${page.statusCode}`);
     }
 
-    if (depth === 0 || !this.config.recursiveCrawling || !page.content) {
+    // FIX: Use nullish coalescing to ensure recursiveCrawling is a boolean
+    if (depth === 0 || !(this.config.recursiveCrawling ?? false) || !page.content) {
       logger.debug(`Stopping recursive crawl for ${url}. Depth: ${depth}, Recursive: ${this.config.recursiveCrawling}, Content: ${!!page.content}`);
       return;
     }
@@ -210,7 +217,7 @@ export class DataSource extends GSDataSource {
     const baseUrl = new URL(url); // Parse the current URL to resolve relative links
     const $ = cheerio.load(page.content);
     const links = $("a[href]")
-      .map((_: number, el: cheerio.Element) => $(el).attr("href")) // Explicitly type '_' and 'el'
+      .map((_: number, el: Element) => $(el).attr("href"))
       .get()
       .filter((href: string | undefined) => {
         if (typeof href !== "string" || href.trim() === "") return false;
@@ -275,7 +282,7 @@ export class DataSource extends GSDataSource {
       const $ = cheerio.load(content);
       // Ensure extracted links are absolute URLs for consistency
       const extractedLinks = $("a[href]")
-        .map((_: number, el: cheerio.Element) => $(el).attr("href")) // Explicitly type '_' and 'el'
+        .map((_: number, el: Element) => $(el).attr("href"))
         .get()
         .filter((href: string | undefined) => typeof href === "string")
         .map((href: string) => {

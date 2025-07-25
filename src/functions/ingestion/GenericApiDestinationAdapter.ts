@@ -1,5 +1,4 @@
-// C:\Users\SOHAM\Desktop\test godspeed\test-project\src\functions\ingestion\GenericApiDestinationAdapter.ts
-// Assuming this file is now in src/functions/ingestion/ and not src/test/
+//C:\Users\SOHAM\Desktop\crawler\test-crawler\src\functions\ingestion\GenericApiDestinationAdapter.ts
 
 import { IDestinationPlugin, IngestionData } from './interfaces';
 import { GSStatus, logger } from '@godspeedsystems/core';

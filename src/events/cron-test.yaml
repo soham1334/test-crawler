@@ -1,0 +1,2 @@
+cron.* * * * *.Asia/Kolkata:
+  fn: triggerIngestionManagerCronTasks

@@ -1,4 +1,4 @@
-// C:\Users\SOHAM\Desktop\test godspeed\test-project\src\functions\ingestion\orchestrator.ts
+// C:\Users\SOHAM\Desktop\crawler\test-crawler\src\functions\ingestion\orchestrator.ts
 
 import { IngestionData, IDestinationPlugin, IngestionDataTransformer, GSDataSource, IngestionEvents } from './interfaces';
 import { GSStatus, logger, GSContext } from '@godspeedsystems/core';
@@ -53,6 +53,9 @@ export class IngestionOrchestrator extends EventEmitter {
             const sourceResultStatus: GSStatus = await this.sourceDataSource.execute(ctx);
 
             let rawData: any[] = [];
+            const fetchedAt = new Date(); 
+            logger.debug(`[Orchestrator DEBUG] Captured fetchedAt: ${fetchedAt.toISOString()}`);
+
             if (sourceResultStatus.success) {
                 if (sourceResultStatus.data && Array.isArray(sourceResultStatus.data.data)) {
                     rawData = sourceResultStatus.data.data;
@@ -72,7 +75,9 @@ export class IngestionOrchestrator extends EventEmitter {
 
             this.eventBus.emit(IngestionEvents.DATA_FETCHED, rawData, this.taskId);
             logger.info(`Orchestrator: Prepared ${rawData.length} raw data items for transformation.`);
-
+             const payloadWithFetchedAt = { ...initialPayload, fetchedAt: fetchedAt.toISOString() };
+            // DEBUG: Log the payload being sent to the transformer
+            logger.debug(`[Orchestrator DEBUG] Passing payload to transformer:`, payloadWithFetchedAt);
             const transformedData: IngestionData[] = await this.dataTransformer(rawData, initialPayload);
 
             this.eventBus.emit(IngestionEvents.DATA_TRANSFORMED, transformedData, this.taskId);

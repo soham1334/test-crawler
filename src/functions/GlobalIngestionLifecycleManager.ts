@@ -1,9 +1,10 @@
-// C:\Users\SOHAM\Desktop\test godspeed\test-project\src\functions/GlobalIngestionLifecycleManager.ts
+// C:\Users\SOHAM\Desktop\crawler\test-crawler\src\functions\GlobalIngestionLifecycleManager.ts
 
 import { EventEmitter } from 'events';
+import { CronExpressionParser } from 'cron-parser';
 // Import essential core types and objects directly from @godspeedsystems/core
 // FIX: Import the entire module as 'Godspeed' to access nested types/enums
-import * as Godspeed from '@godspeedsystems/core';
+
 import { GSStatus, logger, GSContext, GSCloudEvent, GSActor } from '@godspeedsystems/core'; // Keep direct imports for classes/logger if they are truly direct exports
 
 // Corrected import for cron-parser's parseExpression - using default import as suggested by error
@@ -189,7 +190,7 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         return Array.from(this.tasks.values());
     }
 
-    public async triggerManualTask(taskId: string, initialPayload?: any): Promise<GSStatus> {
+    public async triggerManualTask(ctx: GSContext,taskId: string, initialPayload?: any): Promise<GSStatus> {
         const task = this.tasks.get(taskId);
         if (!task) {
             logger.warn(`Manual trigger failed: Task '${taskId}' not found.`);
@@ -201,10 +202,10 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         }
         logger.info(`Manual trigger activated for task '${taskId}'.`);
         // Pass a minimal context here
-        return this._executeIngestionTask(task.id, task, initialPayload);
+        return this._executeIngestionTask(ctx,task.id, task, initialPayload);
     }
 
-    public async triggerWebhookTask(endpointId: string, payload: any): Promise<GSStatus> {
+    public async triggerWebhookTask(ctx: GSContext,endpointId: string, payload: any): Promise<GSStatus> {
         logger.info(`Webhook trigger received for endpointId: '${endpointId}'.`);
         const tasksToTrigger = Array.from(this.tasks.values()).filter(
             task => task.enabled && task.trigger.type === 'webhook' && (task.trigger as WebhookTrigger).endpointId === endpointId
@@ -219,7 +220,7 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         for (const task of tasksToTrigger) {
             logger.info(`Executing webhook-triggered task: ${task.id} with payload.`);
             // Pass a minimal context here
-            const status = await this._executeIngestionTask(task.id, task, { webhookPayload: payload });
+            const status = await this._executeIngestionTask(ctx,task.id, task, { webhookPayload: payload });
             results.push({ taskId: task.id, status });
         }
 
@@ -231,53 +232,74 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         return { success: true, message: `Webhook successfully triggered ${successful} tasks.`, data: results };
     }
 
-    public async triggerAllEnabledCronTasks(): Promise<GSStatus> {
-        logger.info("Manager received command to trigger all enabled cron tasks. Checking due tasks...");
-        const now = new Date();
-        const results: { taskId: string; status: GSStatus }[] = [];
-        let tasksDueCount = 0;
+    public async triggerAllEnabledCronTasks(ctx: GSContext): Promise<GSStatus> {
+    logger.info("Manager received command to trigger all enabled cron tasks. Checking due tasks...");
+    // FIX: Use ctx.event?.time for 'now' to align with Godspeed's event timestamp, with fallback
+    const now = new Date((ctx as any).event?.time || new Date().toISOString());
+    const results: { taskId: string; status: GSStatus }[] = [];
+    let tasksDueCount = 0;
 
-        for (const task of this.tasks.values()) {
-            if (task.enabled && task.trigger.type === 'cron') {
-                const cronTrigger = task.trigger as CronTrigger;
-                try {
-                    // Use default import 'parseExpression' directly
-                    const interval = parseExpression(cronTrigger.expression, { currentDate: now });
-                    const previousRunTime = interval.prev().toDate();
+    for (const task of this.tasks.values()) {
+        logger.info("TASK (from glb)", { task });
 
-                    const fiveSecondsAgo = new Date(now.getTime() - 5000);
-                    if (previousRunTime >= fiveSecondsAgo && previousRunTime <= now) {
-                        logger.info(`Executing cron-triggered task: ${task.id} (expression: ${cronTrigger.expression}, last due: ${previousRunTime.toISOString()}).`);
-                        tasksDueCount++;
-                        // Pass a minimal context here
-                        const status = await this._executeIngestionTask(task.id, task);
-                        results.push({ taskId: task.id, status });
-                    }
-                } catch (error: any) {
-                    logger.error(`Error parsing cron expression for task '${task.id}': ${cronTrigger.expression}. Error: ${error.message}`);
-                    results.push({ taskId: task.id, status: { success: false, message: `Cron expression parse error: ${error.message}` } });
+        if (task.enabled && task.trigger.type === 'cron') {
+            const cronTrigger = task.trigger as CronTrigger;
+            try {
+                // Use 'now' (derived from ctx.event.time) for currentDate in cron-parser
+                const interval = CronExpressionParser.parse(cronTrigger.expression, { currentDate: now });
+                const previousRunTime = interval.prev().toDate(); // Last scheduled time before or at 'now'
+
+                // FIX: Define a wider, robust window (e.g., 65 seconds)
+                const sixtyFiveSecondsAgo = new Date(now.getTime() - (65 * 1000));
+
+                // FIX: Modified checking condition with the robust window and lastRun check
+                // Condition:
+                // 1. previousRunTime must be after the 'sixtyFiveSecondsAgo' mark (it's recent)
+                // 2. previousRunTime must be at or before 'now' (it's not in the future)
+                // 3. AND (crucially) the task's lastRun must be undefined (never run)
+                //    OR the task's lastRun must be older than this specific previousRunTime.
+                //    This prevents re-running a task for the same scheduled interval if the trigger fires multiple times.
+                if (previousRunTime > sixtyFiveSecondsAgo && previousRunTime <= now &&
+                    (!task.lastRun || task.lastRun < previousRunTime)) {
+
+                    logger.info(`Executing cron-triggered task: ${task.id} (expression: ${cronTrigger.expression}, last due: ${previousRunTime.toISOString()}).`);
+                    tasksDueCount++;
+                    // Pass a minimal context here
+                    const status = await this._executeIngestionTask(ctx, task.id, task);
+                    results.push({ taskId: task.id, status });
+                } else {
+                    // FIX: Updated debug log to use sixtyFiveSecondsAgo
+                    logger.debug(`Task '${task.id}' (cron: ${cronTrigger.expression}) not due. ` +
+                                      `prevRun: ${previousRunTime.toISOString()}, ` +
+                                      `now: ${now.toISOString()}, ` +
+                                      `sixtyFiveSecondsAgo: ${sixtyFiveSecondsAgo.toISOString()}. ` +
+                                      `lastRun: ${task.lastRun ? task.lastRun.toISOString() : 'never'}.`);
                 }
+            } catch (error: any) {
+                logger.error(`Error parsing cron expression for task '${task.id}': ${cronTrigger.expression}. Error: ${error.message}`);
+                results.push({ taskId: task.id, status: { success: false, message: `Cron expression parse error: ${error.message}` } });
             }
         }
-
-        if (tasksDueCount === 0) {
-            logger.info("No enabled cron tasks were due at this time.");
-            return { success: true, message: "No enabled cron tasks were due." };
-        }
-
-        const successful = results.filter(r => r.status.success).length;
-        const failed = results.length - successful;
-        if (failed > 0) {
-            return { success: false, message: `Cron triggered ${tasksDueCount} tasks. ${successful} succeeded, ${failed} failed.`, data: results };
-        }
-        return { success: true, message: `Successfully triggered ${successful} cron tasks.` };
     }
+
+    if (tasksDueCount === 0) {
+        logger.info("No enabled cron tasks were due at this time.");
+        return { success: true, message: "No enabled cron tasks were due." };
+    }
+
+    const successful = results.filter(r => r.status.success).length;
+    const failed = results.length - successful;
+    if (failed > 0) {
+        return { success: false, message: `Cron triggered ${tasksDueCount} tasks. ${successful} succeeded, ${failed} failed.`, data: results };
+    }
+    return { success: true, message: `Successfully triggered ${successful} cron tasks.` };
+}
 
     public getEventBus(): EventEmitter {
         return this.eventBus;
     }
 
-    private async _executeIngestionTask(taskId: string, task: IngestionTaskDefinition, initialPayload?: any): Promise<GSStatus> {
+    private async _executeIngestionTask(ctx: GSContext,taskId: string, task: IngestionTaskDefinition, initialPayload?: any): Promise<GSStatus> {
         if (!task.enabled) {
             logger.warn(`Attempted to execute disabled task '${taskId}'. Skipping.`);
             return { success: false, message: `Task '${taskId}' is disabled.`, data: { code: 'TASK_DISABLED' } };
@@ -335,44 +357,9 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         let executionStatus: GSStatus;
 
         try {
-            // Prepare a minimal GSCloudEvent object for the GSContext
-            const eventData = initialPayload || {};
-            const eventId = randomUUID();
-            const eventTime = new Date(); // Assign a Date object
-            const eventSource = `ingestion-lifecycle-manager/task/${taskId}`;
-            const eventType = 'com.godspeed.ingestion.task.triggered'; // Example event type
-            const eventSpecVersion = '1.0';
-            // FIX: Access CHANNEL_TYPE from the Godspeed namespace object
-            const eventChannel = Godspeed.CHANNEL_TYPE.INTERNAL; // Adjusted
-            // Create a minimal GSActor
-            // FIX: Access ACTOR_TYPE from the Godspeed namespace object
-            const eventActor = new GSActor(Godspeed.ACTOR_TYPE.SYSTEM, 'default', 'IngestionManager', 'ingestion-manager'); // Adjusted
+            
 
-            const gsCloudEvent: GSCloudEvent = new GSCloudEvent(
-                eventId,
-                eventType,
-                eventTime,
-                eventSource,
-                eventSpecVersion,
-                eventData,
-                eventChannel,
-                eventActor,
-                {} // metadata can be an empty object
-            );
-
-            // Instantiate GSContext using its constructor, providing all required arguments
-            const minimalContext: GSContext = new GSContext(
-                {} as Record<string, any>, // config: Using Record<string, any> instead of PlainObject
-                {} as Record<string, any>, // datasources: Using Record<string, any> instead of PlainObject
-                gsCloudEvent, // event: GSCloudEvent (this becomes ctx.inputs)
-                {} as Record<string, any>, // mappings: Using Record<string, any> instead of PlainObject
-                {} as Record<string, any>, // functions: Using Record<string, any> instead of PlainObject
-                {} as Record<string, any>, // plugins: Using Record<string, any> instead of PlainObject
-                logger, // logger: pino.Logger
-                logger.child({}) // childLogger: pino.Logger (create a child logger instance)
-            );
-
-            executionStatus = await orchestrator.executeTask(minimalContext, initialPayload); // Pass minimalContext first
+            executionStatus = await orchestrator.executeTask(ctx, initialPayload); // Pass minimalContext first
             task.lastRunStatus = executionStatus;
             if (executionStatus.success) {
                 logger.info(`Task '${taskId}' completed successfully.`);
