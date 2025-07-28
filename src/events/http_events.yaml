@@ -1,0 +1,81 @@
+http.post./webhook/github/:
+  id : github-push-event
+  fn: triggerIngestionManagerWebhookTasks
+  summary: GitHub Push Event Webhook
+  description: Receives GitHub push event payloads to trigger Git crawling tasks.
+  authn: false
+  body:
+    content:
+      application/json:
+        schema:
+          # - $ref: "#/definitions/GitHubPushEventPayload"
+  responses:
+    200:
+      description: Webhook received and processed successfully.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              message: { type: string }
+
+# # 👇 This must be at the root level
+# definitions:
+#   GitHubPushEventPayload:
+#     type: object
+#     properties:
+#       ref: { type: string }
+#       before: { type: string }
+#       after: { type: string }
+#       repository:
+#         type: object
+#         properties:
+#           id: { type: number }
+#           name: { type: string }
+#           full_name: { type: string }
+#           html_url: { type: string }
+#         required: [id, name, full_name, html_url]
+#       pusher:
+#         type: object
+#         properties:
+#           name: { type: string }
+#           email: { type: string }
+#         required: [name, email]
+#       commits:
+#         type: array
+#         items:
+#           type: object
+#           properties:
+#             id: { type: string }
+#             message: { type: string }
+#             timestamp: { type: string }
+#             url: { type: string }
+#             author:
+#               type: object
+#               properties:
+#                 name: { type: string }
+#                 email: { type: string }
+#               required: [name, email]
+#             added: { type: array, items: { type: string } }
+#             removed: { type: array, items: { type: string } }
+#             modified: { type: array, items: { type: string } }
+#           required: [id, message, timestamp, url, author]
+#       head_commit:
+#         type: object
+#         properties:
+#           id: { type: string }
+#           message: { type: string }
+#           timestamp: { type: string }
+#           url: { type: string }
+#           author:
+#             type: object
+#             properties:
+#               name: { type: string }
+#               email: { type: string }
+#             required: [name, email]
+#           added: { type: array, items: { type: string } }
+#           removed: { type: array, items: { type: string } }
+#           modified: { type: array, items: { type: string } }
+#         required: [id, message, timestamp, url, author]
+#     required: [ref, repository, commits, pusher, head_commit]

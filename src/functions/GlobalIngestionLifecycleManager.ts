@@ -91,25 +91,36 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
     }
 
     public async scheduleTask(taskDefinition: IngestionTaskDefinition): Promise<GSStatus> {
+        // console.log("--- DEBUG: scheduleTask - Incoming taskDefinition (RAW) ---");
+        // console.log(taskDefinition); // Print the object directly
+        // console.log("--- END DEBUG: scheduleTask - Incoming taskDefinition (RAW) ---");
+
+        
         const taskId: string = taskDefinition.id || randomUUID();
         if (this.tasks.has(taskId)) {
             logger.warn(`Task '${taskId}' already exists. Use updateTask to modify.`);
             return { success: false, message: `Task '${taskId}' already exists.` };
         }
+        //  logger.info(`[GlobalIngestionLifecycleManager] Debugging clonedTaskDefinition BEFORE storing in map (Task ID: ${taskId}):`, taskDefinition);
+        const clonedTaskDefinition: IngestionTaskDefinition = JSON.parse(JSON.stringify(taskDefinition));
 
-        taskDefinition.id = taskId;
+    clonedTaskDefinition.id = taskId; // Ensure the ID is set on the cloned object
 
-        taskDefinition.currentStatus = IngestionTaskStatus.SCHEDULED;
-        taskDefinition.lastRun = undefined;
-        taskDefinition.lastRunStatus = undefined;
+    clonedTaskDefinition.currentStatus = IngestionTaskStatus.SCHEDULED;
+    clonedTaskDefinition.lastRun = undefined;
+    clonedTaskDefinition.lastRunStatus = undefined;
 
-        this.tasks.set(taskId, taskDefinition);
-        logger.info(`Task '${taskId}' scheduled.`);
-        this.eventBus.emit(IngestionEvents.TASK_SCHEDULED, taskId, taskDefinition);
+    //  logger.info(`[GlobalIngestionLifecycleManager] Debugging clonedTaskDefinition BEFORE storing in map (Task ID: ${taskId}):`, JSON.stringify(clonedTaskDefinition, null, 2));
+    this.tasks.set(taskId, clonedTaskDefinition); // Store the cloned object
+    logger.info(`Task '${taskId}' scheduled.`);
 
-        if (this.lifecycleStarted) {
-            this._setupTrigger(taskDefinition);
-        }
+    // FIX: Use Map.get() to retrieve the stored object for logging
+    logger.info(`[GlobalIngestionLifecycleManager] Debugging task object STORED in map (Task ID: ${taskId}):`, JSON.stringify(this.tasks.get(taskId), null, 2));
+    this.eventBus.emit(IngestionEvents.TASK_SCHEDULED, taskId, clonedTaskDefinition); // Emit cloned object
+
+    if (this.lifecycleStarted) {
+        this._setupTrigger(clonedTaskDefinition); // Use cloned object for setup
+    }
         return { success: true, message: `Task '${taskId}' scheduled successfully.` };
     }
 
@@ -234,6 +245,8 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
 
     public async triggerAllEnabledCronTasks(ctx: GSContext): Promise<GSStatus> {
     logger.info("Manager received command to trigger all enabled cron tasks. Checking due tasks...");
+
+    
     // FIX: Use ctx.event?.time for 'now' to align with Godspeed's event timestamp, with fallback
     const now = new Date((ctx as any).event?.time || new Date().toISOString());
     const results: { taskId: string; status: GSStatus }[] = [];
@@ -299,13 +312,35 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         return this.eventBus;
     }
 
-    private async _executeIngestionTask(ctx: GSContext,taskId: string, task: IngestionTaskDefinition, initialPayload?: any): Promise<GSStatus> {
+    private async _executeIngestionTask(ctx: GSContext,taskId: string, taski: IngestionTaskDefinition, initialPayload?: any): Promise<GSStatus> {
+        const task  = this.tasks.get(taskId)  as IngestionTaskDefinition;
+        console.log(`--- DEBUG: _executeIngestionTask - Task object retrieved for execution (Task ID: ${taskId}) (RAW) ---`);
+        
+        console.log(task); // Print the retrieved task object directly
+        console.log(`--- END DEBUG: _executeIngestionTask - Task object retrieved for execution (Task ID: ${taskId}) (RAW) ---`);
+        
+
+        console.log("START DEBUG------CTX FROM executetask---------")
+        console.log(ctx)
+        console.log("END DEBUG------CTX FROM executetask---------")
+
+
         if (!task.enabled) {
             logger.warn(`Attempted to execute disabled task '${taskId}'. Skipping.`);
             return { success: false, message: `Task '${taskId}' is disabled.`, data: { code: 'TASK_DISABLED' } };
         }
 
+
+        console.log("START DEBUG -------- sourcePlugins from executetask-------------")
+        console.log(this.sourcePlugins)
+        console.log("END DEBUG -------- sourcePlugins from executetask-------------")
+       
+
         const sourceDef = this.sourcePlugins.get(task.source.pluginType);
+
+        console.log("START DEBUG -------- sourceDef from executetask-------------")
+        console.log(sourceDef)
+        console.log("END DEBUG -------- sourceDef from executetask-------------")
 
         let destinationDef: (new (...args: any[]) => IDestinationPlugin) | undefined;
         if (task.destination) {
@@ -313,7 +348,7 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
         }
 
         if (!sourceDef) {
-            logger.error(`Source plugin '${task.source.pluginType}' not registered for task '${taskId}'.`);
+            logger.error(`Source plugin1 '${task.source.pluginType}' not registered for task '${taskId}'.`);
             const status: GSStatus = { success: false, message: `Source plugin '${task.source.pluginType}' not registered.` };
             task.currentStatus = IngestionTaskStatus.FAILED;
             task.lastRunStatus = status;
@@ -331,6 +366,13 @@ export class GlobalIngestionLifecycleManager implements IGlobalIngestionLifecycl
 
         let orchestrator = this.orchestrators.get(taskId);
         if (!orchestrator) {
+             // NEW DEBUGGING: Log the entire task.source object and its config property
+        // logger.info(`[GlobalIngestionLifecycleManager] Debugging task.source for task '${taskId}':`, task.source);
+        // logger.info(`[GlobalIngestionLifecycleManager] Debugging task.source.config for task '${taskId}':`, task.source.config);
+        // logger.info(`[GlobalIngestionLifecycleManager] Debugging task.source.config.startUrl for task '${taskId}':`, (task.source.config as any)?.startUrl);
+        // logger.info(`[GlobalIngestionLifecycleManager] Debugging task.source.config.axiosServiceInstanceName for task '${taskId}':`, (task.source.config as any)?.axiosServiceInstanceName);
+
+
             const sourcePluginInstance = new sourceDef.plugin({ config: task.source.config });
 
             let destinationPluginInstance: IDestinationPlugin | undefined;

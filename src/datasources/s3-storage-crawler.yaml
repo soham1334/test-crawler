@@ -1,0 +1,33 @@
+# src/datasources/s3-storage-crawler.yaml
+# This 'type' MUST match the 'Type' constant exported from your s3-storage-crawler.ts
+type: s3-storage-crawler
+
+# --- Required Configuration ---
+# The name of the S3 bucket to interact with.
+bucketName: "your-s3-bucket-name" # <<< IMPORTANT: Replace with your actual S3 bucket name
+
+# NEW: Name of the S3 service instance configured in src/datasources/aws.yaml
+# This tells the S3StorageCrawler which pre-configured S3 client to use from the AWS plugin.
+# Example: If you have 's3' defined under 'services' in aws.yaml, set this to "s3".
+awsServiceInstanceName: "s3" # <<< IMPORTANT: Match this to a service name in your aws.yaml
+
+# --- Optional Configurations for Standard Mode ---
+# An optional key prefix to filter objects when listing (e.g., 'my-folder/', 'logs/2023/').
+# Only objects whose keys start with this prefix will be considered.
+# prefix: "data/"
+
+# --- Webhook Mode Configuration (for S3 Event Notifications) ---
+# Enable webhook mode for this S3StorageCrawler instance.
+# When true, this instance will expect to receive S3 Event Notification payloads
+# and process specific objects/events from them.
+webhookMode: true
+
+# Dot-separated path to extract the S3 object key from the incoming webhook payload.
+# This is the common path for S3 Event Notifications (e.g., from S3 to SQS/SNS, then to your webhook).
+# Example payload structure: { "Records": [{ "s3": { "object": { "key": "path/to/object.txt" } } }] }
+webhookObjectKeyPath: "Records[0].s3.object.key"
+
+# Dot-separated path to extract the event name from the incoming webhook payload.
+# This is the common path for S3 Event Notifications (e.g., "ObjectCreated:Put", "ObjectRemoved:Delete").
+# Example payload structure: { "Records": [{ "eventName": "ObjectCreated:Put" }] }
+webhookEventNamePath: "Records[0].eventName"

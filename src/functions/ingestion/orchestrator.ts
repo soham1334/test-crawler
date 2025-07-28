@@ -1,8 +1,8 @@
 // C:\Users\SOHAM\Desktop\crawler\test-crawler\src\functions\ingestion\orchestrator.ts
 
 import { IngestionData, IDestinationPlugin, IngestionDataTransformer, GSDataSource, IngestionEvents } from './interfaces';
+// FIX: Removed GSCloudEvent import as it's no longer needed for this strategy
 import { GSStatus, logger, GSContext } from '@godspeedsystems/core';
-// FIX 1: Corrected EventEmitter import syntax
 import { EventEmitter } from 'events';
 
 export class IngestionOrchestrator extends EventEmitter {
@@ -49,20 +49,20 @@ export class IngestionOrchestrator extends EventEmitter {
             logger.info(`Source client initialized for task ${this.taskId}.`);
 
             logger.info(`Orchestrator: Executing Godspeed DataSource (${this.sourceDataSource.constructor.name}) to fetch/process data...`);
-
-            const sourceResultStatus: GSStatus = await this.sourceDataSource.execute(ctx);
+            // FIX: Pass the original ctx and initialPayload directly to the sourceDataSource.execute method
+            const sourceResultStatus: GSStatus = await this.sourceDataSource.execute(ctx, initialPayload);
 
             let rawData: any[] = [];
-            const fetchedAt = new Date(); 
+            const fetchedAt = new Date();
             logger.debug(`[Orchestrator DEBUG] Captured fetchedAt: ${fetchedAt.toISOString()}`);
 
             if (sourceResultStatus.success) {
-                if (sourceResultStatus.data && Array.isArray(sourceResultStatus.data.data)) {
-                    rawData = sourceResultStatus.data.data;
-                    logger.info(`Orchestrator: HttpCrawler yielded ${rawData.length} data items from 'status.data.data'.`);
+                if (sourceResultStatus.data && sourceResultStatus.data.data) {
+                    rawData = Array.isArray(sourceResultStatus.data.data) ? sourceResultStatus.data.data : [sourceResultStatus.data.data];
+                    logger.info(`Orchestrator: DataSource yielded ${rawData.length} data items from 'status.data.data'.`);
                 } else if (sourceResultStatus.data) {
                     rawData = [sourceResultStatus.data];
-                    logger.info(`Orchestrator: GitCrawler yielded 1 data item from 'status.data'.`);
+                    logger.info(`Orchestrator: DataSource yielded 1 data item from 'status.data'.`);
                 } else {
                     logger.warn(`Orchestrator: Source executed successfully but returned no data in 'status.data' for task ${this.taskId}.`);
                 }
@@ -75,10 +75,10 @@ export class IngestionOrchestrator extends EventEmitter {
 
             this.eventBus.emit(IngestionEvents.DATA_FETCHED, rawData, this.taskId);
             logger.info(`Orchestrator: Prepared ${rawData.length} raw data items for transformation.`);
-             const payloadWithFetchedAt = { ...initialPayload, fetchedAt: fetchedAt.toISOString() };
-            // DEBUG: Log the payload being sent to the transformer
+            
+            const payloadWithFetchedAt = { ...initialPayload, fetchedAt: fetchedAt.toISOString() };
             logger.debug(`[Orchestrator DEBUG] Passing payload to transformer:`, payloadWithFetchedAt);
-            const transformedData: IngestionData[] = await this.dataTransformer(rawData, initialPayload);
+            const transformedData: IngestionData[] = await this.dataTransformer(rawData, payloadWithFetchedAt);
 
             this.eventBus.emit(IngestionEvents.DATA_TRANSFORMED, transformedData, this.taskId);
             logger.info(`Orchestrator: Transformed data, received ${transformedData.length} data items.`);

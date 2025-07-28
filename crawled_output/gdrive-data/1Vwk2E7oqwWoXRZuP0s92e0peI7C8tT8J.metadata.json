@@ -1,0 +1,18 @@
+{
+  "id": "1Vwk2E7oqwWoXRZuP0s92e0peI7C8tT8J",
+  "url": "https://drive.google.com/file/d/1Vwk2E7oqwWoXRZuP0s92e0peI7C8tT8J/view?usp=drivesdk",
+  "statusCode": 200,
+  "fetchedAt": "2025-07-27T18:39:00.930Z",
+  "metadata": {
+    "fileId": "1Vwk2E7oqwWoXRZuP0s92e0peI7C8tT8J",
+    "fileName": "AY2024-2025_AE646_FCH.pdf",
+    "mimeType": "application/pdf",
+    "fileSize": 788370,
+    "createdTime": "2024-07-30T03:23:30.066Z",
+    "modifiedTime": "2024-07-30T03:23:29.692Z",
+    "parents": [
+      "1V_5NJVYdZ7HyHxpYBjLs8TIjVc_nWRJ0"
+    ],
+    "ingestionType": "gdrive_full_scan"
+  }
+}

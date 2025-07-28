@@ -1,0 +1,42 @@
+# src/datasources/azure-blob-crawler.yaml
+# This 'type' MUST match the 'Type' constant exported from your azure-blob-crawler.ts
+type: azure-blob-crawler
+
+# --- Required Configuration ---
+# The name of the Azure Blob Storage container you want to crawl or monitor.
+# This is now optional at the SDK level, but required for actual crawling operations.
+containerName?: "your-azure-container-name" # <<< IMPORTANT: Replace with your actual Azure Blob container name
+
+# --- Authentication (Secure Authentication: 3.3.3.2) ---
+# You must provide authentication details for your Azure Storage Account.
+# It is HIGHLY RECOMMENDED to use environment variables for sensitive information in production.
+
+# Option 1 (Recommended): Provide the Azure Storage Account Connection String.
+# This string contains all necessary authentication details (account name, key, endpoint).
+# Example: DefaultEndpointsProtocol=https;AccountName=youraccount;AccountKey=yourkey;EndpointSuffix=core.windows.net
+connectionString?: "AZURE_STORAGE_CONNECTION_STRING" # <<< IMPORTANT: Set this env var, or provide actual string
+
+# Option 2 (Alternative): Provide Account Name and Account Key separately.
+# Use this if you prefer not to use a full connection string.
+# accountName?: "${env.AZURE_STORAGE_ACCOUNT_NAME}" # Your Azure Storage Account Name
+# accountKey?: "${env.AZURE_STORAGE_ACCOUNT_KEY}"   # Your Azure Storage Account Key
+
+# --- Optional Configurations for Standard Mode ---
+# An optional blob prefix to filter objects when listing (e.g., 'my-folder/', 'logs/2023/').
+# Only blobs whose names start with this prefix will be considered.
+# prefix: "documents/"
+
+# --- Webhook Mode Configuration (for Azure Event Grid Notifications - Monitoring: 3.3.3.3) ---
+# Enable webhook mode for this AzureBlobCrawler instance.
+# When true, this instance will expect to receive Azure Event Grid payloads
+# and process specific blob changes from them.
+webhookMode: true
+
+# Dot-separated path to extract the Blob URL from the incoming webhook payload.
+# Azure Event Grid notifications for Blob Storage typically have the URL here.
+# Example payload structure: [{ "data": { "url": "https://account.blob.core.windows.net/container/blob.txt" }, "eventType": "Microsoft.Storage.BlobCreated" }]
+webhookBlobUrlPath: "data.url" # Assumes Event Grid schema
+
+# Dot-separated path to extract the event type from the incoming webhook payload.
+# Common values: 'Microsoft.Storage.BlobCreated', 'Microsoft.Storage.BlobDeleted', etc.
+webhookEventTypePath: "eventType" # Assumes Event Grid schema

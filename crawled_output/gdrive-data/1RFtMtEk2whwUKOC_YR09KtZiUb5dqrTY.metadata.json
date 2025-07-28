@@ -1,0 +1,18 @@
+{
+  "id": "1RFtMtEk2whwUKOC_YR09KtZiUb5dqrTY",
+  "url": "https://drive.google.com/file/d/1RFtMtEk2whwUKOC_YR09KtZiUb5dqrTY/view?usp=drivesdk",
+  "statusCode": 200,
+  "fetchedAt": "2025-07-27T18:39:00.930Z",
+  "metadata": {
+    "fileId": "1RFtMtEk2whwUKOC_YR09KtZiUb5dqrTY",
+    "fileName": "bbf13afd-4aeb-493a-a719-7a0575bfb4e1.jpg",
+    "mimeType": "image/jpeg",
+    "fileSize": 32890,
+    "createdTime": "2024-06-10T18:01:17.063Z",
+    "modifiedTime": "2024-06-10T18:02:22.491Z",
+    "parents": [
+      "1V_5NJVYdZ7HyHxpYBjLs8TIjVc_nWRJ0"
+    ],
+    "ingestionType": "gdrive_full_scan"
+  }
+}

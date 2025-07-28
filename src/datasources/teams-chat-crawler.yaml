@@ -1,0 +1,43 @@
+# src/datasources/teams-chat-crawler.yaml
+# This 'type' MUST match the 'Type' constant exported from your teams-chat-crawler.ts
+type: teams-chat-crawler
+
+# --- Required Authentication Configuration (OAuth 2.0 Client Credentials Flow) ---
+# These credentials are for your Azure AD Application Registration.
+# It is HIGHLY RECOMMENDED to store these sensitive values in environment variables
+# (e.g., in your Godspeed project's .env file) rather than hardcoding them here.
+
+# Your Azure AD Tenant ID (also known as Directory ID).
+tenantId: "${env.TEAMS_TENANT_ID}" # <<< IMPORTANT: Set this env var
+
+# Your Azure AD Application (Client) ID.
+clientId: "${env.TEAMS_CLIENT_ID}" # <<< IMPORTANT: Set this env var
+
+# Your Azure AD Application (Client) Secret.
+clientSecret: "${env.TEAMS_CLIENT_SECRET}" # <<< IMPORTANT: Set this env var
+
+# REMOVED: axiosServiceInstanceName as we are not using the Axios plugin
+
+# --- Optional Configurations for Standard Mode ---
+# Optional: A specific Teams Online Meeting ID to fetch chat transcripts for.
+# This is used when webhookMode is false.
+# meetingId: "your_teams_meeting_id"
+
+# Required if meetingId is used in standard mode: The User ID (or UPN) of a user
+# who owns or created the meeting. This is necessary for the Graph API path.
+# userIdForMeetings: "user@yourdomain.com"
+
+# --- Webhook Mode Configuration ---
+# Enable webhook mode for this TeamsChatCrawler instance.
+# When true, this instance will expect to receive webhook payloads (e.g., from a custom
+# Azure Logic App/Function triggered by Teams events) and process them.
+webhookMode: true
+
+# Optional: Dot-separated path to extract the Teams Meeting ID from the incoming webhook payload.
+# Example: If your webhook payload is { "event": { "meeting": { "id": "meeting_id_here" } } },
+# you would set this to "event.meeting.id".
+# webhookMeetingIdPath: "data.meetingId"
+
+# Optional: Dot-separated path to extract the Teams Chat ID (threadId) directly from the incoming webhook payload.
+# If the webhook provides the chat ID directly, this is preferred over meetingId.
+# webhookChatIdPath: "data.chatId"

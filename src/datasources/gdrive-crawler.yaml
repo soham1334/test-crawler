@@ -1,0 +1,44 @@
+# src/datasources/gdrive-crawler.yaml
+# This 'type' MUST match the 'Type' constant exported from your gdrive-crawler.ts
+type: gdrive-crawler
+
+# --- Required Configuration ---
+# The ID of the Google Drive folder you want to crawl or monitor.
+# You can find this ID in the URL when you open a folder in Google Drive (e.g., https://drive.google.com/drive/drive/folders/YOUR_FOLDER_ID)
+folderId?: "your_google_drive_folder_id" # <<< IMPORTANT: Replace with your actual Google Drive folder ID
+
+# --- Authentication (Secure Authentication: 3.3.3.2) ---
+# Currently, only 'service_account' is supported.
+authType?: service_account
+
+# Service Account Key:
+# You must provide your Google Service Account key.
+# It is HIGHLY RECOMMENDED to store the JSON key content in an environment variable
+# for production environments, rather than directly in this file or a file path.
+
+# Option 1: Provide the JSON key content directly from an environment variable.
+# This is the most secure and recommended approach for production.
+#serviceAccountKey?: "GOOGLE_SERVICE_ACCOUNT_KEY_JSON" # <<< IMPORTANT: Set this env var
+
+# Option 2: Provide the path to your service account JSON key file.
+# Use this only if environment variables are not feasible.
+serviceAccountKeyPath: "../path/to/your/service-account-key.json"
+
+# --- Optional Configurations for Standard Mode ---
+# Number of files to retrieve per page in list operations. Default: 100
+# pageSize: 100
+
+# --- Webhook Mode Configuration (for Google Drive Push Notifications - Monitoring: 3.3.3.3) ---
+# Enable webhook mode for this GoogleDriveCrawler instance.
+# When true, this instance will expect to receive Google Drive Push Notification payloads
+# and process specific file changes from them.
+webhookMode: true
+
+# Dot-separated path to extract the Google Drive File ID from the incoming webhook payload.
+# Google Drive Push Notifications often send the file ID directly in the payload.
+# Example payload structure: { "id": "file_id_here", "resourceState": "changed" }
+webhookFileIdPath: "id"
+
+# Dot-separated path to extract the change type from the incoming webhook payload.
+# Common values for Google Drive Push Notifications: 'changed', 'not_changed', 'exists', 'not_exists'.
+webhookChangeTypePath: "resourceState"

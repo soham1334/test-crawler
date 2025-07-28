@@ -1,0 +1,18 @@
+{
+  "id": "1dDakoeV6P2XtVDqgU5tZMy5z5CCYfyjB",
+  "url": "https://docs.google.com/document/d/1dDakoeV6P2XtVDqgU5tZMy5z5CCYfyjB/edit?usp=drivesdk&ouid=110177078925041801020&rtpof=true&sd=true",
+  "statusCode": 200,
+  "fetchedAt": "2025-07-27T18:39:00.930Z",
+  "metadata": {
+    "fileId": "1dDakoeV6P2XtVDqgU5tZMy5z5CCYfyjB",
+    "fileName": "BCS.pdf.docx",
+    "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "fileSize": 677292,
+    "createdTime": "2023-06-21T17:18:10.509Z",
+    "modifiedTime": "2023-06-21T17:22:26.244Z",
+    "parents": [
+      "1V_5NJVYdZ7HyHxpYBjLs8TIjVc_nWRJ0"
+    ],
+    "ingestionType": "gdrive_full_scan"
+  }
+}
